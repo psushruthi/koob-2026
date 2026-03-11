@@ -1,52 +1,22 @@
 # -*- coding: utf-8 -*-
-"""
-step2_coloc.py
-
-Step 2 of KOOB analysis pipeline.
-
-Builds two binary AND colocalization channels from the masked channels
-produced by mask_roi.py:
-  ch8 = NeuN x DAPI  (binary mask, 65535 where both above threshold)
-  ch9 = GFAP x DAPI  (binary mask, 65535 where both above threshold)
-
-These channels will be used by step3_surfaces.py for cell detection.
-
-Input channels (from mask_roi.py):
-  ch4 = DAPI_masked
-  ch6 = NeuN_masked
-  ch7 = GFAP_masked
-
-Thresholds — tune at the top if results look wrong:
-  THR_DAPI = 0   (p90 of DAPI_masked distribution)
-  THR_NEUN = 8000  (between p75-p90 of NeuN_masked — permissive, DAPI gates)
-  THR_GFAP = 10000  (just above p75 of GFAP_masked — permissive, DAPI gates)
-"""
-
 import ImarisLib
 import Imaris
 import array
 import sys
 
-# ------------------------------------------------------------------ #
-#  CONFIG — tune these if results look over/under-segmented
-# ------------------------------------------------------------------ #
+CH_DAPI = 4
+CH_NEUN = 6
+CH_GFAP = 7
 
-CH_DAPI = 4   # DAPI_masked
-CH_NEUN = 6   # NeuN_masked
-CH_GFAP = 7   # GFAP_masked
-
-THR_DAPI = 0.0
-THR_NEUN = 4000.0
-THR_GFAP = 8000.0
+THR_DAPI = 25.0   
+THR_NEUN = 2500.0
+THR_GFAP = 6000.0  
 
 OUT_NEUN_NAME  = "NeuN_DAPI_coloc"
 OUT_GFAP_NAME  = "GFAP_DAPI_coloc"
-COLOR_NEUN     = 0xFF6600FF   # orange — distinct from raw red NeuN
-COLOR_GFAP     = 0x00FF88FF   # mint green — distinct from raw yellow GFAP
+COLOR_NEUN     = 0xFF6600FF
+COLOR_GFAP     = 0x00FF88FF
 
-# ------------------------------------------------------------------ #
-#  Helpers
-# ------------------------------------------------------------------ #
 
 def _connect():
     lib = ImarisLib.ImarisLib()
@@ -78,7 +48,6 @@ def _check_channel(ds, ch, label):
 
 
 def _grow_channels(app, ds, extra):
-    """Add `extra` new channels. Falls back to new dataset if in-place grow fails."""
     sc = ds.GetSizeC()
     target = sc + extra
     try:
@@ -121,10 +90,6 @@ def _grow_channels(app, ds, extra):
 
 
 def _write_binary_coloc(ds, ch_a, thr_a, ch_b, thr_b, out_ch, name, color):
-    """
-    Binary AND mask: out[i] = 65535 if a[i]>=thr_a AND b[i]>=thr_b, else 0.
-    Writes into pre-allocated out_ch.
-    """
     sx, sy, sz, st = ds.GetSizeX(), ds.GetSizeY(), ds.GetSizeZ(), ds.GetSizeT()
     plane_size = sx * sy
     total_true = 0
@@ -156,53 +121,32 @@ def _write_binary_coloc(ds, ch_a, thr_a, ch_b, thr_b, out_ch, name, color):
     print(f"[coloc] '{name}' -> ch{out_ch}: true voxels={total_true} / {total} ({100.0*total_true/total:.4f}%)")
 
 
-def _print_coloc_summary(ds, out_neun, out_gfap):
-    print("\n" + "="*50)
-    print("COLOCALIZATION SUMMARY")
-    print("="*50)
-    for ch, label in [(out_neun, OUT_NEUN_NAME), (out_gfap, OUT_GFAP_NAME)]:
-        try:
-            name = ds.GetChannelName(ch)
-            print(f"  ch{ch} '{name}' created ✓")
-        except Exception:
-            print(f"  ch{ch} '{label}' created ✓")
-    print(f"\n  Thresholds used:")
-    print(f"    DAPI >= {THR_DAPI}")
-    print(f"    NeuN >= {THR_NEUN}")
-    print(f"    GFAP >= {THR_GFAP}")
-    print("="*50)
-    print("[next] Run step3_surfaces.py next.")
-
-
-# ------------------------------------------------------------------ #
-#  Main
-# ------------------------------------------------------------------ #
-
 def XT_Build_Coloc(aImarisApplicationID=0):
     app, ds = _connect()
 
-    # verify input channels exist
     print("\n[info] Verifying input channels ...")
     _check_channel(ds, CH_DAPI, "DAPI_masked")
     _check_channel(ds, CH_NEUN, "NeuN_masked")
     _check_channel(ds, CH_GFAP, "GFAP_masked")
 
-    # grow dataset by 2 channels
     ds, start_out = _grow_channels(app, ds, extra=2)
-    out_neun = start_out       # ch8
-    out_gfap = start_out + 1   # ch9
+    out_neun = start_out
+    out_gfap = start_out + 1
     print(f"\n[info] Output indices: {OUT_NEUN_NAME}->ch{out_neun}, {OUT_GFAP_NAME}->ch{out_gfap}")
 
-    # build coloc channels
     _write_binary_coloc(ds, CH_NEUN, THR_NEUN, CH_DAPI, THR_DAPI, out_neun, OUT_NEUN_NAME, COLOR_NEUN)
     _write_binary_coloc(ds, CH_GFAP, THR_GFAP, CH_DAPI, THR_DAPI, out_gfap, OUT_GFAP_NAME, COLOR_GFAP)
 
-    _print_coloc_summary(ds, out_neun, out_gfap)
+    print("\n" + "="*50)
+    print("COLOCALIZATION SUMMARY")
+    print("="*50)
+    print(f"  THR_DAPI >= {THR_DAPI}")
+    print(f"  THR_NEUN >= {THR_NEUN}")
+    print(f"  THR_GFAP >= {THR_GFAP}")
+    print("="*50)
 
 
 if __name__ == "__main__":
     lib = ImarisLib.ImarisLib()
-    server = lib.GetServer()
-    obj_id = server.GetObjectID(0)
-    print(f"[connect] Using Imaris application ID: {obj_id}")
+    obj_id = lib.GetServer().GetObjectID(0)
     XT_Build_Coloc(obj_id)
