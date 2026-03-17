@@ -14,10 +14,13 @@ import traceback
 import datetime
 import ImarisLib
 
-INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026"
+INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026/KOOB_FILES/batch1"
 SCRIPT_DIR = "/Volumes/Sush/Automation/KOOB_2026/scripts"
-CSV_PATH   = os.path.join(INPUT_DIR, "koob_results.csv")
-LOG_PATH   = os.path.join(INPUT_DIR, "koob_batch.log")
+
+BATCH_NAME = os.path.basename(INPUT_DIR)   # automatically gets "batch1", "batch2", etc.
+
+CSV_PATH   = os.path.join(INPUT_DIR, f"{BATCH_NAME}_results.csv")
+LOG_PATH   = os.path.join(INPUT_DIR, f"{BATCH_NAME}_batch.log")
 
 STEPS = [
     ("mask_roi.py",        "XT_Mask_ROI"),

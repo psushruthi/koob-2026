@@ -4,7 +4,7 @@ mask_roi.py
 
 Step 1 of KOOB analysis pipeline.
 
-Finds the surface named "Entorhinal CTX / BLA" in the Surpass scene,
+Finds the surface named "RhCTX" in the Surpass scene,
 extracts its binary voxel mask, clones the dataset, and writes 4 new
 masked channels (one per original channel), zeroing out all voxels
 outside the ROI.
@@ -27,7 +27,7 @@ import Imaris
 import array
 import sys
 
-ROI_NAME = "Entorhinal CTX / BLA"
+ROI_NAME = "RhCTX"
 
 # ---- channel indices (0-based) ----
 CH_DAPI = 0
