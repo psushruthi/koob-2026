@@ -4,17 +4,17 @@ import Imaris
 import sys
 
 NEUN_CHANNEL       = 8
-NEUN_SMOOTH_WIDTH  = 0.5
-NEUN_BG_WIDTH      = 75.0
+NEUN_SMOOTH_WIDTH  = 0.7
+NEUN_BG_WIDTH      = 150.0
 NEUN_THRESHOLD     = 2500.0
-NEUN_MIN_VOLUME    = 20.0    # µm³ — remove small spurious NeuN detections
+NEUN_MIN_VOLUME    = 25.0    # µm³ — remove small spurious NeuN detections
 NEUN_NAME          = "NeuN Surfaces"
 
 GFAP_CHANNEL       = 9
-GFAP_SMOOTH_WIDTH  = 0.9
-GFAP_BG_WIDTH      = 100.0
-GFAP_THRESHOLD     = 6500.0   # was 5000.0 — raised to suppress dim process signal
-GFAP_MIN_VOLUME    = 25.0    # µm³ — astrocyte bodies are larger than neurons
+GFAP_SMOOTH_WIDTH  = 1.5
+GFAP_BG_WIDTH      = 150.0
+GFAP_THRESHOLD     = 50.0   # was 5000.0 — raised to suppress dim process signal
+GFAP_MIN_VOLUME    = 15.0    # µm³ — astrocyte bodies are larger than neurons
 GFAP_NAME          = "GFAP Surfaces"
 
 

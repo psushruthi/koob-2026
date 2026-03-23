@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 KOOB 2026 - Batch Processing Script
-
-Finds all .ims files in INPUT_DIR, runs the full pipeline on each,
-saves back in place, and writes a CSV with NeuN + GFAP counts.
 """
 
 import os
@@ -13,12 +10,12 @@ import time
 import traceback
 import datetime
 import ImarisLib
+import Imaris
 
-INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026/KOOB_FILES/batch1"
+INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026/KOOB_FILES/batch2"
 SCRIPT_DIR = "/Volumes/Sush/Automation/KOOB_2026/scripts"
 
-BATCH_NAME = os.path.basename(INPUT_DIR)   # automatically gets "batch1", "batch2", etc.
-
+BATCH_NAME = os.path.basename(INPUT_DIR)
 CSV_PATH   = os.path.join(INPUT_DIR, f"{BATCH_NAME}_results.csv")
 LOG_PATH   = os.path.join(INPUT_DIR, f"{BATCH_NAME}_batch.log")
 
@@ -76,9 +73,8 @@ def run_step(script_name, fn_name, app_id):
 
 def count_surfaces(app, name_substring):
     scene = app.GetSurpassScene()
-    n = scene.GetNumberOfChildren()
     name_sub_lower = name_substring.lower()
-    for i in range(n):
+    for i in range(scene.GetNumberOfChildren()):
         child = scene.GetChild(i)
         if child is None:
             continue
@@ -87,6 +83,54 @@ def count_surfaces(app, name_substring):
             if surfs is not None:
                 return surfs.GetNumberOfSurfaces()
     return -1
+
+
+# ─────────────────────────────────────────────
+# COUNT ROI VOXELS BY NAME
+# ─────────────────────────────────────────────
+
+def count_roi_voxels(app, roi_name):
+    ds = app.GetDataSet()
+    if ds is None:
+        return -1
+    scene = app.GetSurpassScene()
+    for i in range(scene.GetNumberOfChildren()):
+        child = scene.GetChild(i)
+        if child is None:
+            continue
+        if child.GetName() == roi_name:
+            surf = Imaris.ISurfacesPrx.checkedCast(child)
+            if surf is None:
+                return -1
+            sx, sy, sz = ds.GetSizeX(), ds.GetSizeY(), ds.GetSizeZ()
+            min_x, max_x = ds.GetExtendMinX(), ds.GetExtendMaxX()
+            min_y, max_y = ds.GetExtendMinY(), ds.GetExtendMaxY()
+            min_z, max_z = ds.GetExtendMinZ(), ds.GetExtendMaxZ()
+            mask_ds = surf.GetMask(min_x, min_y, min_z, max_x, max_y, max_z, sx, sy, sz, 0)
+            total = 0
+            for z in range(sz):
+                plane = mask_ds.GetDataSubVolumeAs1DArrayBytes(0, 0, z, 0, 0, sx, sy, 1)
+                total += sum(1 for v in plane if v > 0)
+            return total
+    log(f"   Surface '{roi_name}' not found in scene", level="WARN")
+    return -1
+
+
+# ─────────────────────────────────────────────
+# SKIP ALREADY COMPLETED FILES
+# ─────────────────────────────────────────────
+
+def get_completed_files(csv_path):
+    """Return set of filenames already successfully completed in the CSV."""
+    completed = set()
+    if not os.path.exists(csv_path):
+        return completed
+    with open(csv_path, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row.get("status") == "success":
+                completed.add(row.get("filename"))
+    return completed
 
 
 # ─────────────────────────────────────────────
@@ -111,17 +155,21 @@ def process_file(ims_path, lib, app_id):
         run_step(script_name, fn_name, app_id)
         log(f"   Done: {script_name}")
 
-    # re-fetch app handle to get updated scene
     app = get_app(lib, app_id)
-    neun_count = count_surfaces(app, "NeuN")
-    gfap_count = count_surfaces(app, "GFAP")
+    rhctx_voxels = count_roi_voxels(app, "RhCTX")
+    bla_voxels   = count_roi_voxels(app, "BLA")
+    neun_count   = count_surfaces(app, "NeuN")
+    gfap_count   = count_surfaces(app, "GFAP")
+
+    log(f"   RhCTX voxels:  {rhctx_voxels}")
+    log(f"   BLA voxels:    {bla_voxels}")
     log(f"   NeuN surfaces: {neun_count}")
     log(f"   GFAP surfaces: {gfap_count}")
 
     app.FileSave(ims_path, "")
     log(f"   Saved: {ims_path}")
 
-    return neun_count, gfap_count
+    return rhctx_voxels, bla_voxels, neun_count, gfap_count
 
 
 # ─────────────────────────────────────────────
@@ -130,17 +178,33 @@ def process_file(ims_path, lib, app_id):
 
 def run_batch():
     log("=" * 60)
-    log("KOOB 2026 Batch Processing — START")
+    log(f"KOOB 2026 Batch Processing — START ({BATCH_NAME})")
+    log(f"Input:  {INPUT_DIR}")
+    log(f"CSV:    {CSV_PATH}")
+    log(f"Log:    {LOG_PATH}")
 
     ims_files = sorted(glob.glob(os.path.join(INPUT_DIR, "*.ims")))
     if not ims_files:
         log(f"No .ims files found in {INPUT_DIR}", level="WARN")
         return
 
-    log(f"Found {len(ims_files)} file(s): {[os.path.basename(f) for f in ims_files]}")
+    # skip already completed files
+    completed = get_completed_files(CSV_PATH)
+    if completed:
+        log(f"Skipping {len(completed)} already completed: {sorted(completed)}")
+    ims_files = [f for f in ims_files if os.path.basename(f) not in completed]
+    if not ims_files:
+        log("All files already completed — nothing to do.")
+        return
+    log(f"Remaining to process: {len(ims_files)} file(s)")
 
-    with open(CSV_PATH, "w", newline="") as csvf:
-        csv.writer(csvf).writerow(["filename", "neun_count", "gfap_count", "status", "error"])
+    # write header only if CSV doesn't exist yet
+    if not os.path.exists(CSV_PATH):
+        with open(CSV_PATH, "w", newline="") as csvf:
+            csv.writer(csvf).writerow([
+                "filename", "rhctx_voxels", "bla_voxels",
+                "neun_count", "gfap_count", "status", "error"
+            ])
 
     lib, app_id = get_lib_and_id()
     log(f"Imaris app_id: {app_id}")
@@ -148,11 +212,11 @@ def run_batch():
     for i, ims_path in enumerate(ims_files, 1):
         filename = os.path.basename(ims_path)
         log(f"\n[{i}/{len(ims_files)}] {filename}")
-        neun_count, gfap_count = -1, -1
+        rhctx_voxels, bla_voxels, neun_count, gfap_count = -1, -1, -1, -1
         status, error_msg = "success", ""
 
         try:
-            neun_count, gfap_count = process_file(ims_path, lib, app_id)
+            rhctx_voxels, bla_voxels, neun_count, gfap_count = process_file(ims_path, lib, app_id)
         except Exception as e:
             status = "error"
             error_msg = str(e)
@@ -165,7 +229,10 @@ def run_batch():
                 log(f"   Reconnect failed: {re}", level="ERROR")
 
         with open(CSV_PATH, "a", newline="") as csvf:
-            csv.writer(csvf).writerow([filename, neun_count, gfap_count, status, error_msg])
+            csv.writer(csvf).writerow([
+                filename, rhctx_voxels, bla_voxels,
+                neun_count, gfap_count, status, error_msg
+            ])
 
     log("\n" + "=" * 60)
     log("BATCH COMPLETE")

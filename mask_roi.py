@@ -28,6 +28,7 @@ import array
 import sys
 
 ROI_NAME = "RhCTX"
+ROI_NAME_EXTRA = "BLA"   # not analyzed, just counting voxels for records
 
 # ---- channel indices (0-based) ----
 CH_DAPI = 0
@@ -64,6 +65,24 @@ def _find_roi_surface(app, name):
                 print(f"[roi] WARNING: name matched but could not cast to ISurfaces")
     return None
 
+def _get_roi_voxel_count(app, ds, name):
+    """Find a named surface and return its voxel count without masking anything."""
+    surf = _find_roi_surface(app, name)
+    if surf is None:
+        print(f"[voxel_count] Surface '{name}' not found in scene — skipping")
+        return None
+    sx, sy, sz = ds.GetSizeX(), ds.GetSizeY(), ds.GetSizeZ()
+    min_x, max_x = ds.GetExtendMinX(), ds.GetExtendMaxX()
+    min_y, max_y = ds.GetExtendMinY(), ds.GetExtendMaxY()
+    min_z, max_z = ds.GetExtendMinZ(), ds.GetExtendMaxZ()
+    mask_ds = surf.GetMask(min_x, min_y, min_z, max_x, max_y, max_z, sx, sy, sz, 0)
+    total = 0
+    for z in range(sz):
+        plane = mask_ds.GetDataSubVolumeAs1DArrayBytes(0, 0, z, 0, 0, sx, sy, 1)
+        total += sum(1 for v in plane if v > 0)
+    print(f"[voxel_count] ROI '{name}' total voxels inside mask: {total}")
+    return total
+
 def _get_roi_mask(roi_surf, ds):
     """
     Extract flat binary mask from ISurfaces object using GetMask.
@@ -95,7 +114,7 @@ def _get_roi_mask(roi_surf, ds):
     total_inside = sum(1 for v in mask if v > 0)
     total = sx * sy * sz
     print(f"[mask] ROI voxels inside: {total_inside} / {total} ({100.0*total_inside/total:.2f}%)")
-    return mask, sx, sy, sz
+    return mask, sx, sy, sz, total_inside
 
 def _clone_dataset(app, ds):
     """Clone dataset with identical XYZCT, copy all channels, switch app to clone."""
@@ -238,7 +257,7 @@ def XT_Mask_ROI(aImarisApplicationID=0):
         raise RuntimeError(f"Could not find a surface named '{ROI_NAME}' in the Surpass scene.")
 
     # 2) Extract mask BEFORE cloning (mask is geometry-based, survives dataset swap)
-    mask, sx, sy, sz = _get_roi_mask(roi_surf, ds)
+    mask, sx, sy, sz, roi_voxels = _get_roi_mask(roi_surf, ds)
 
     # 3) Clone dataset and switch app
     ds = _clone_dataset(app, ds)
@@ -256,6 +275,8 @@ def XT_Mask_ROI(aImarisApplicationID=0):
     print(f"[done] Masked channels written at indices: {out_indices}")
     print("[done] ch4=DAPI_masked  ch5=tau_masked  ch6=NeuN_masked  ch7=GFAP_masked")
     print("[next] Run step2_coloc.py next.")
+    print(f"[summary] ROI '{ROI_NAME}' total voxels inside mask: {roi_voxels}")
+    _get_roi_voxel_count(app, ds, ROI_NAME_EXTRA)
 
 if __name__ == "__main__":
     lib = ImarisLib.ImarisLib()
