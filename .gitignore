@@ -1,1 +1,12 @@
+# macOS metadata
 ._*
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs and output (optional — remove if you want these tracked)
+*.log
+*_results.csv
