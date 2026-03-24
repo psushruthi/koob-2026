@@ -1,0 +1,43 @@
+# ============================================================
+# KOOB 2026 — Pipeline Requirements
+# ============================================================
+#
+# This pipeline runs as Imaris XTensions and has NO pip-installable
+# dependencies. All required modules are either:
+#   - Bundled with Imaris (ImarisLib, Imaris)
+#   - Part of the Python standard library (os, csv, glob, etc.)
+#
+# ============================================================
+# SYSTEM REQUIREMENTS
+# ============================================================
+#
+# 1. Imaris 10.2.0 (Bitplane / Oxford Instruments)
+#    - License required (contact your PI or lab IT)
+#    - Download: https://imaris.oxinst.com
+#    - Bundled Python is used automatically via XTensions
+#    - ImarisLib and Imaris modules are located at:
+#      /Applications/Imaris 10.2.0.app/Contents/SharedSupport/XT/python3/
+#
+# 2. Git (for cloning and version control)
+#    - macOS: xcode-select --install
+#    - or: https://git-scm.com
+#
+# ============================================================
+# PYTHON — STANDARD LIBRARY ONLY (no pip install needed)
+# ============================================================
+#
+# The following standard library modules are used across scripts:
+#   os, sys, csv, glob, time, traceback, datetime, array
+#
+# ============================================================
+# POST-CLONE SETUP
+# ============================================================
+#
+# After cloning this repo, update the hardcoded paths in:
+#   - batch_process.py  ->  INPUT_DIR, SCRIPT_DIR
+#   - koob_pipeline.py  ->  SCRIPT_DIR
+#
+# Point these to wherever your .ims files and scripts live
+# on your local machine.
+#
+# ============================================================
