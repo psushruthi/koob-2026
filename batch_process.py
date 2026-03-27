@@ -12,7 +12,7 @@ import datetime
 import ImarisLib
 import Imaris
 
-INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026/KOOB_FILES/batch4"
+INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026/KOOB_FILES/batch6"
 SCRIPT_DIR = "/Volumes/Sush/Automation/KOOB_2026/scripts"
 
 BATCH_NAME = os.path.basename(INPUT_DIR)

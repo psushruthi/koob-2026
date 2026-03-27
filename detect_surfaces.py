@@ -14,7 +14,7 @@ GFAP_CHANNEL       = 9
 GFAP_SMOOTH_WIDTH  = 1.5
 GFAP_BG_WIDTH      = 150.0
 GFAP_THRESHOLD     = 50.0   # was 5000.0 — raised to suppress dim process signal
-GFAP_MIN_VOLUME    = 15.0    # µm³ — astrocyte bodies are larger than neurons
+GFAP_MIN_VOLUME    = 18.0    # µm³ — astrocyte bodies are larger than neurons
 GFAP_NAME          = "GFAP Surfaces"
 
 
