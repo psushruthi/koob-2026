@@ -12,8 +12,8 @@ import datetime
 import ImarisLib
 import Imaris
 
-INPUT_DIR  = "/Volumes/Sush/Automation/KOOB_2026/KOOB_FILES/batch6"
-SCRIPT_DIR = "/Volumes/Sush/Automation/KOOB_2026/scripts"
+INPUT_DIR  = "/Volumes/Sush_KOOB/images/batch10"
+SCRIPT_DIR = "/Volumes/Sush_KOOB/scripts"
 
 BATCH_NAME = os.path.basename(INPUT_DIR)
 CSV_PATH   = os.path.join(INPUT_DIR, f"{BATCH_NAME}_results.csv")

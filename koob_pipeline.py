@@ -15,7 +15,7 @@ import ImarisLib
 import traceback
 import os
 
-SCRIPT_DIR = "/Volumes/Sush/Automation/KOOB_2026/scripts"
+SCRIPT_DIR = "/Volumes/Sush_KOOB/scripts"
 
 STEPS = [
     ("mask_roi.py",        "XT_Mask_ROI"),
